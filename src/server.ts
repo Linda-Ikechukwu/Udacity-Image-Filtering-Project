@@ -1,74 +1,58 @@
-import express from 'express';
-import { Request, Response } from 'express';
-import bodyParser from 'body-parser';
-import {filterImageFromURL, deleteLocalFiles} from './util/util';
-//import { try } from 'bluebird';
+import express from "express";
+import bodyParser from "body-parser";
+import { filterImageFromURL, deleteLocalFiles } from "./util/util";
 
-(async () => {
+// Init the Express application
+const app = express();
 
-  // Init the Express application
-  const app = express();
+// Set the network port
+const port = process.env.PORT || 8082;
 
-  // Set the network port
-  const port = process.env.PORT || 8082;
-  
-  // Use the body parser middleware for post requests
-  app.use(bodyParser.json());
+// Use the body parser middleware for post requests
+app.use(bodyParser.json());
 
-  // @TODO1 IMPLEMENT A RESTFUL ENDPOINT
-  // GET /filteredimage?image_url={{URL}}
-  // endpoint to filter an image from a public url.
-  // IT SHOULD
-  //    1. validate the image_url query
-  //    2. call filterImageFromURL(image_url) to filter the image
-  //    3. send the resulting file in the response
-  //    4. deletes any files on the server on finish of the response
-  // QUERY PARAMATERS
-  //    image_url: URL of a publicly accessible image
-  // RETURNS
-  //   the filtered image file [!!TIP res.sendFile(filteredpath); might be useful]
+// @TODO1 IMPLEMENT A RESTFUL ENDPOINT
+// GET /filteredimage?image_url={{URL}}
+// endpoint to filter an image from a public url.
+// IT SHOULD
+//    1
+//    1. validate the image_url query
+//    2. call filterImageFromURL(image_url) to filter the image
+//    3. send the resulting file in the response
+//    4. deletes any files on the server on finish of the response
+// QUERY PARAMATERS
+//    image_url: URL of a publicly accessible image
+// RETURNS
+//   the filtered image file [!!TIP res.sendFile(filteredpath); might be useful]
+app.get("/filteredimage", async (req, res) => {
+  const { image_url } = req.query;
+  if (!image_url) {
+    return res.status(400).send({ success: false, message: "image_url query is required" });
+  }
+  try {
+    const filter = await filterImageFromURL(image_url);
+    const filteredimage = `${__dirname}/util/${filter}`;
+    return res.status(200).sendFile(filteredimage, err => {
+      deleteLocalFiles([filteredimage]);
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).send({ success: false, error: "Internal server error" });
+  }
+});
 
-  /**************************************************************************** */
+/**************************************************************************** */
 
-  app.get('/filteredimage', async (req: Request, res: Response) => {
-    let {image_url} = req.query;
+//! END @TODO1
 
-    if ( !image_url ) {
-      return res.status(400).send(`Bad Request: image url query is required`);
-    }
-    
-    try{
-      const filteredImage = await filterImageFromURL(image_url);
-      res.status(200).sendFile(filteredImage, async function (err) {
-        if (err) {
-          console.log(err);
-        }else {
-          try {
-            await deleteLocalFiles([filteredImage]); 
-          }catch(e) {
-            console.log("error removing image", e); 
-          }
-        }
-      });
-    
-    }catch (error) {
-      console.error(error);
-    }
-    
-  })
+// Root Endpoint
+// Displays a simple message to the user
+app.get("/", async (req, res) => {
+  res.send("try GET /filteredimage?image_url={{}}");
+});
 
-  
-  
-  // Root Endpoint
-  // Displays a simple message to the user
-  app.get( "/", async ( req, res ) => {
-    res.send("try GET /filteredimage?image_url={{}}")
-  } );
-  
-
-  // Start the Server
-  app.listen( port, () => {
-      console.log( `server running http://localhost:${ port }` );
-      console.log( `press CTRL+C to stop server` );
-  } );
-})();
+// Start the Server
+app.listen(port, () => {
+  console.log(`server running http://localhost:${port}`);
+  console.log(`press CTRL+C to stop server`);
+});
